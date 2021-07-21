@@ -1,18 +1,15 @@
-# RTC using 4 7-seg LCD
+# STM32L4 LowPower Mode
   
 ![RTC](pix.jpg)
 
 
-# Official version of RTC
+# Official version of LowPower MODE
 
 the following project use the STM32L476 nucleo 64pins
 
 # Features
 
-* RTC with LSE
-* Battery with monitoring in the VBAT
-* LCD segments displayed with dimming with homogenous brightness
-* Allow to set time and VBAT with one Button
+* Illustrate steps of entering and exiting low power mode with several techniques
 
 # Hardware
 
@@ -22,7 +19,6 @@ the following project use the STM32L476 nucleo 64pins
 
 These tools are used for developing the application
 
-* Microsoft Visual Studio (Graphical interface development)
 * EWARM 8.5
 
 # Contact
