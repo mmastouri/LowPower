@@ -423,6 +423,7 @@ typedef struct
   */
 #define RCC_CLOCKTYPE_SYSCLK           0x00000001U   /*!< SYSCLK to configure */
 #define RCC_CLOCKTYPE_HCLK             0x00000002U   /*!< HCLK to configure */
+
 #define RCC_CLOCKTYPE_PCLK1            0x00000004U   /*!< PCLK1 to configure */
 #define RCC_CLOCKTYPE_PCLK2            0x00000008U   /*!< PCLK2 to configure */
 /**

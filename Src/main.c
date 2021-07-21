@@ -1,4 +1,3 @@
-/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -18,6 +17,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdio.h>
 #include "main.h"
 #include "stm32_seq.h"
 #include "stm32_lpm_if.h"
@@ -25,19 +25,25 @@
 /* Private includes ----------------------------------------------------------*/
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-//#define LP_STOP
-#define LP_SLEEP
 /* Private macro -------------------------------------------------------------*/
 #define ACTIVE_TASK_ID   0x00
 
 /* Private variables ---------------------------------------------------------*/
 static TIM_HandleTypeDef    htim;
-void TIM3_IRQHandler(void);
-
+static UART_HandleTypeDef   huart;
 /* Private function prototypes -----------------------------------------------*/
 static void SystemClock_Config(void);
 static void Error_Handler(void);
 static void UTIL_AtiveTask( void );
+void TIM3_IRQHandler(void);
+/* Private function prototypes -----------------------------------------------*/
+#ifdef __GNUC__
+/* With GCC, small printf (option LD Linker->Libraries->Small printf
+   set to 'Yes') calls __io_putchar() */
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+#define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
 
 /* Private user code ---------------------------------------------------------*/
 
@@ -47,6 +53,8 @@ static void UTIL_AtiveTask( void );
   */
 int main(void)
 {
+  GPIO_InitTypeDef  gpio_init;
+  
   /* Init HAL Library */
   HAL_Init();
    
@@ -69,14 +77,38 @@ int main(void)
   
   HAL_TIM_Base_Start_IT(&htim);
   
+  /*Init UART */
+  __HAL_RCC_USART2_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  gpio_init.Pin       = GPIO_PIN_2 | GPIO_PIN_3;
+  gpio_init.Mode      = GPIO_MODE_AF_PP;
+  gpio_init.Pull      = GPIO_PULLUP;
+  gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init.Alternate = GPIO_AF7_USART2;
+
+  HAL_GPIO_Init(GPIOA, &gpio_init);
+
+  
+  huart.Instance        = USART2;
+  huart.Init.BaudRate   = 9600;
+  huart.Init.WordLength = UART_WORDLENGTH_8B;
+  huart.Init.StopBits   = UART_STOPBITS_1;
+  huart.Init.Parity     = UART_PARITY_NONE;
+  huart.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  huart.Init.Mode       = UART_MODE_TX_RX;
+
+  HAL_UART_Init(&huart);
+    
   /* Init the LED*/  
   BSP_LED_Init(LED_GREEN);
   
   /* Init the BUTTON*/  
   BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);  
   
+  printf ("> uart initialized.\n\r");
   /* Init the LPM*/  
-  UTIL_LPM_Init();
+  //HAL_PWR_EnableSleepOnExit();
   
   /* Init the sequencer*/
   UTIL_SEQ_Init();
@@ -96,14 +128,10 @@ int main(void)
   */
 void UTIL_SEQ_Idle( void )
 {
-#ifdef LP_SLEEP  
-  PWR_EnterSleepMode();
-#endif
+  printf ("> Entered in LP mode.\n\r");
+  printf ("> SysFreq = %d Hz.\n\r", SystemCoreClock);
 
-#ifdef LP_STOP  
-  PWR_EnterStopMode();
-#endif
-  
+  PWR_EnterSleepMode();
 }
 
 /**
@@ -137,13 +165,11 @@ void TIM3_IRQHandler(void)
 void  HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
    UTIL_SEQ_SetTask(1 << ACTIVE_TASK_ID, 0);
-#ifdef LP_SLEEP  
-  PWR_ExitSleepMode();
-#endif
 
-#ifdef LP_STOP  
-  PWR_ExitStopMode();
-#endif
+  PWR_ExitSleepMode();
+
+  printf ("> Exited from LP mode [EXTI].\n\r");
+  printf ("> SysFreq = %d Hz.\n\r", SystemCoreClock);    
 }
 
 /**
@@ -163,14 +189,12 @@ void EXTI15_10_IRQHandler(void)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-   UTIL_SEQ_SetTask(1 << ACTIVE_TASK_ID, 0);
-#ifdef LP_SLEEP  
+  UTIL_SEQ_SetTask(1 << ACTIVE_TASK_ID, 0);
   PWR_ExitSleepMode();
-#endif
 
-#ifdef LP_STOP  
-  PWR_ExitStopMode();
-#endif
+  printf ("> Exited from LP mode [TIM].\n\r");
+  printf ("> SysFreq = %d Hz.\n\r", SystemCoreClock);    
+  
 }
 
 
@@ -200,8 +224,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_5;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_11;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -237,6 +262,20 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
+}
+
+/**
+  * @brief  Retargets the C library printf function to the USART.
+  * @param  None
+  * @retval None
+  */
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART1 and Loop until the end of transmission */
+  HAL_UART_Transmit(&huart, (uint8_t *)&ch, 1, 0xFFFF);
+
+  return ch;
 }
 
 #ifdef  USE_FULL_ASSERT
