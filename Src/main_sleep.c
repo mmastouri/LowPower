@@ -26,6 +26,8 @@ static void SystemClock_Config(void);
 static void Error_Handler(void);
 static void UTIL_AtiveTask( void );
 void TIM3_IRQHandler(void);
+static void UART_Init( void );
+static void TIM_Init( void );
 /* Private function prototypes -----------------------------------------------*/
 #ifdef __GNUC__
 /* With GCC, small printf (option LD Linker->Libraries->Small printf
@@ -44,7 +46,7 @@ uint32_t count = 0;
   */
 int main(void)
 {
-  GPIO_InitTypeDef  gpio_init;
+
   uint32_t freq_stop = HAL_RCC_GetSysClockFreq();
   /* Init HAL Library */
   HAL_Init();
@@ -53,41 +55,10 @@ int main(void)
   SystemClock_Config();
   
   /* Configure timer*/
-  __HAL_RCC_TIM3_CLK_ENABLE();
-  HAL_NVIC_SetPriority(TIM3_IRQn, 0, 1);
-  HAL_NVIC_EnableIRQ(TIM3_IRQn);  
-  
-  // 5s = Presc/N
-  htim.Instance = TIM3;
-  htim.Init.Period = HAL_RCC_GetSysClockFreq()/1000 - 1;
-  htim.Init.Prescaler = 5000 - 1;
-  htim.Init.ClockDivision = 0;
-  htim.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  HAL_TIM_Base_Init(&htim); 
+  TIM_Init();
   
   /*Init UART */
-  __HAL_RCC_USART2_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  gpio_init.Pin       = GPIO_PIN_2 | GPIO_PIN_3;
-  gpio_init.Mode      = GPIO_MODE_AF_PP;
-  gpio_init.Pull      = GPIO_PULLUP;
-  gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
-  gpio_init.Alternate = GPIO_AF7_USART2;
-
-  HAL_GPIO_Init(GPIOA, &gpio_init);
-
-  
-  huart.Instance        = USART2;
-  huart.Init.BaudRate   = 9600;
-  huart.Init.WordLength = UART_WORDLENGTH_8B;
-  huart.Init.StopBits   = UART_STOPBITS_1;
-  huart.Init.Parity     = UART_PARITY_NONE;
-  huart.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
-  huart.Init.Mode       = UART_MODE_TX_RX;
-
-  HAL_UART_Init(&huart);
+  UART_Init();
     
   /* Init the LED*/  
   BSP_LED_Init(LED_GREEN);
@@ -171,6 +142,57 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   printf ("      - SysFreq @RESET = %d MHz.\n\r", freq_stop/1000000);   
   printf ("      - SysFreq @RUN = %d MHz.\n\r", HAL_RCC_GetSysClockFreq()/1000000); 
   
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+static void UART_Init( void )
+{
+  GPIO_InitTypeDef  gpio_init;
+  
+  __HAL_RCC_USART2_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  
+  gpio_init.Pin       = GPIO_PIN_2 | GPIO_PIN_3;
+  gpio_init.Mode      = GPIO_MODE_AF_PP;
+  gpio_init.Pull      = GPIO_PULLUP;
+  gpio_init.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init.Alternate = GPIO_AF7_USART2;
+  
+  HAL_GPIO_Init(GPIOA, &gpio_init);
+  
+  
+  huart.Instance        = USART2;
+  huart.Init.BaudRate   = 9600;
+  huart.Init.WordLength = UART_WORDLENGTH_8B;
+  huart.Init.StopBits   = UART_STOPBITS_1;
+  huart.Init.Parity     = UART_PARITY_NONE;
+  huart.Init.HwFlowCtl  = UART_HWCONTROL_NONE;
+  huart.Init.Mode       = UART_MODE_TX_RX;
+  
+  HAL_UART_Init(&huart);
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+static void TIM_Init( void )
+{
+  __HAL_RCC_TIM3_CLK_ENABLE();
+  HAL_NVIC_SetPriority(TIM3_IRQn, 0, 1);
+  HAL_NVIC_EnableIRQ(TIM3_IRQn);  
+  
+  // 5s = Presc/N
+  htim.Instance = TIM3;
+  htim.Init.Period = HAL_RCC_GetSysClockFreq()/1000 - 1;
+  htim.Init.Prescaler = 5000 - 1;
+  htim.Init.ClockDivision = 0;
+  htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  HAL_TIM_Base_Init(&htim); 
 }
 /**
   * @brief  Function.
